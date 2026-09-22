@@ -79,7 +79,9 @@ if (!indexSource.includes('COMMAND_NOT_FOUND_FEEDBACK_V1')) {
             msg
           );`;
   const feedbackDefault = `        default:
-          // COMMAND_NOT_FOUND_FEEDBACK_V1
+          // COMMAND_NOT_FOUND_FEEDBACK_V2
+          // Grupo não autorizado: membro comum deve ficar em silêncio; dono mantém acesso.
+          if (jid.endsWith('@g.us') && !isGroupAllowed && !messageOwner) break;
           await send(
             sock,
             jid,
