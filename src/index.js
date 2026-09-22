@@ -2341,6 +2341,283 @@ async function sendStatus(sock, jid, msg) {
   );
 }
 
+// COMMUNITY_BANC_V1
+function jidMatchesAny(jid, candidates = []) {
+  if (!jid) return false;
+
+  return candidates
+    .filter(Boolean)
+    .some((candidate) => {
+      try {
+        return areJidsSameUser(jid, candidate);
+      } catch {
+        return String(jid) === String(candidate);
+      }
+    });
+}
+
+function participantAliases(participant, extra = []) {
+  return [
+    ...extra,
+    participant?.id,
+    participant?.phoneNumber,
+    participant?.lid
+  ].filter(Boolean);
+}
+
+function findParticipantByAliases(metadata, aliases = []) {
+  return (metadata?.participants || []).find((participant) =>
+    participantAliases(participant).some((participantJid) =>
+      jidMatchesAny(participantJid, aliases)
+    )
+  ) || null;
+}
+
+function communityRootJid(metadata, fallbackJid = '') {
+  if (metadata?.linkedParent) return metadata.linkedParent;
+  if (metadata?.isCommunity) return metadata?.id || fallbackJid;
+  return null;
+}
+
+async function banCommunityMember(sock, jid, msg) {
+  if (!jid.endsWith('@g.us')) {
+    await send(sock, jid, '🚫 O comando *!banc* só funciona dentro de grupos de uma comunidade.', msg);
+    return;
+  }
+
+  try {
+    const currentMetadata = await sock.groupMetadata(jid);
+    const rootJid = communityRootJid(currentMetadata, jid);
+
+    if (!rootJid) {
+      await send(
+        sock,
+        jid,
+        '🏘️ Este grupo não está identificado como parte de uma comunidade. O *!banc* não foi executado.',
+        msg
+      );
+      return;
+    }
+
+    const rootMetadata =
+      rootJid === jid
+        ? currentMetadata
+        : await sock.groupMetadata(rootJid);
+
+    const sender = msg.key.participant || msg.key.remoteJid;
+    const senderAlt = msg.key.participantAlt;
+    const senderCurrent = findParticipantByAliases(
+      currentMetadata,
+      [sender, senderAlt]
+    );
+    const senderAliases = participantAliases(
+      senderCurrent,
+      [sender, senderAlt]
+    );
+    const senderCommunity = findParticipantByAliases(
+      rootMetadata,
+      senderAliases
+    );
+
+    const communityOwnerIds = [
+      rootMetadata?.owner,
+      rootMetadata?.ownerPn,
+      rootMetadata?.ownerLid
+    ].filter(Boolean);
+
+    const senderIsCommunityOwner = senderAliases.some((senderJid) =>
+      jidMatchesAny(senderJid, communityOwnerIds)
+    );
+
+    if (!senderIsCommunityOwner && !senderCommunity?.admin) {
+      await send(
+        sock,
+        jid,
+        '⛔ Apenas administradores ou o dono da comunidade podem usar *!banc*.',
+        msg
+      );
+      return;
+    }
+
+    const botCommunity = findBotParticipant(rootMetadata, sock);
+    if (!botCommunity?.admin) {
+      await send(
+        sock,
+        jid,
+        '🛡️ A Rimuru precisa ser administradora da comunidade para executar *!banc*.',
+        msg
+      );
+      return;
+    }
+
+    const contextInfo = getContextInfo(msg.message);
+    const rawTarget =
+      contextInfo?.mentionedJid?.[0] ||
+      contextInfo?.participant ||
+      contextInfo?.participantAlt;
+
+    if (!rawTarget) {
+      await send(
+        sock,
+        jid,
+        '👤 Use *!banc @membro* ou responda à mensagem da pessoa com *!banc*.',
+        msg
+      );
+      return;
+    }
+
+    const currentTarget = findParticipantByAliases(
+      currentMetadata,
+      [rawTarget]
+    );
+
+    const targetAliases = participantAliases(
+      currentTarget,
+      [
+        rawTarget,
+        contextInfo?.participant,
+        contextInfo?.participantAlt,
+        ...(contextInfo?.mentionedJid || [])
+      ]
+    );
+
+    const botIds = [sock.user?.id, sock.user?.lid].filter(Boolean);
+
+    if (targetAliases.some((targetJid) => jidMatchesAny(targetJid, senderAliases))) {
+      await send(sock, jid, '⚠️ Você não pode aplicar *!banc* em si mesmo.', msg);
+      return;
+    }
+
+    if (targetAliases.some((targetJid) => jidMatchesAny(targetJid, botIds))) {
+      await send(sock, jid, '⚠️ A Rimuru não pode aplicar *!banc* nela mesma.', msg);
+      return;
+    }
+
+    if (targetAliases.some((targetJid) => jidMatchesAny(targetJid, communityOwnerIds))) {
+      await send(sock, jid, '👑 O dono da comunidade não pode ser removido com *!banc*.', msg);
+      return;
+    }
+
+    const rootTarget = findParticipantByAliases(rootMetadata, targetAliases);
+    if (rootTarget?.admin === 'superadmin') {
+      await send(sock, jid, '👑 O dono da comunidade não pode ser removido com *!banc*.', msg);
+      return;
+    }
+
+    const allGroups = await sock.groupFetchAllParticipating();
+    const related = new Map();
+
+    const addRelated = (groupJid, metadata) => {
+      const id = metadata?.id || groupJid;
+      if (!id || !String(id).endsWith('@g.us')) return;
+      related.set(id, metadata);
+    };
+
+    addRelated(jid, currentMetadata);
+    addRelated(rootJid, rootMetadata);
+
+    for (const [groupJid, metadata] of Object.entries(allGroups || {})) {
+      const id = metadata?.id || groupJid;
+
+      if (
+        id === rootJid ||
+        metadata?.linkedParent === rootJid ||
+        (metadata?.isCommunity && id === rootJid)
+      ) {
+        addRelated(id, metadata);
+      }
+    }
+
+    const orderedGroups = [...related.entries()].sort(([a], [b]) => {
+      if (a === jid) return 1;
+      if (b === jid) return -1;
+      return 0;
+    });
+
+    let removed = 0;
+    let skippedNoAdmin = 0;
+    let failures = 0;
+    let foundIn = 0;
+
+    for (const [groupJid, cachedMetadata] of orderedGroups) {
+      let metadata = cachedMetadata;
+
+      try {
+        if (!Array.isArray(metadata?.participants)) {
+          metadata = await sock.groupMetadata(groupJid);
+        }
+
+        const target = findParticipantByAliases(metadata, targetAliases);
+        if (!target) continue;
+
+        foundIn += 1;
+
+        const botInfo = findBotParticipant(metadata, sock);
+        if (!botInfo?.admin) {
+          skippedNoAdmin += 1;
+          continue;
+        }
+
+        await sock.groupParticipantsUpdate(groupJid, [target.id], 'remove');
+        removed += 1;
+      } catch (error) {
+        failures += 1;
+        console.error(
+          `[BANC] Falha ao remover de ${groupJid}:`,
+          error?.message || error
+        );
+      }
+    }
+
+    const logTarget =
+      currentTarget ||
+      rootTarget ||
+      { id: rawTarget };
+
+    addAdminLog(
+      jid,
+      'BANC_COMUNIDADE',
+      senderCommunity || senderCurrent,
+      logTarget,
+      `removido em ${removed}; encontrado em ${foundIn}; sem permissão em ${skippedNoAdmin}; falhas ${failures}`
+    );
+    await saveGroupSettings();
+
+    if (!foundIn) {
+      await send(
+        sock,
+        jid,
+        '🔎 Não encontrei esse membro nos grupos da comunidade acessíveis à Rimuru.',
+        msg
+      );
+      return;
+    }
+
+    await sock.sendMessage(
+      jid,
+      {
+        text:
+          `🚫 *BANC DA COMUNIDADE CONCLUÍDO*\n\n` +
+          `Membro: ${mentionLabel(rawTarget)}\n` +
+          `Removido de: *${removed}* grupo(s)\n` +
+          `Encontrado em: *${foundIn}* grupo(s)` +
+          (skippedNoAdmin ? `\nSem permissão da Rimuru: *${skippedNoAdmin}*` : '') +
+          (failures ? `\nFalhas: *${failures}*` : ''),
+        mentions: [rawTarget]
+      },
+      { quoted: msg }
+    );
+  } catch (error) {
+    console.error('Falha no comando !banc:', error?.message || error);
+    await send(
+      sock,
+      jid,
+      '❌ Não consegui concluir o banimento da comunidade. Verifique se a Rimuru continua como administradora da comunidade.',
+      msg
+    );
+  }
+}
+
 async function banMember(sock, jid, msg) {
   if (!jid.endsWith('@g.us')) {
     await send(sock, jid, '🚫 O comando *!ban* só funciona em grupos.', msg);
@@ -3174,6 +3451,10 @@ async function startEdith() {
 
         case 'ban':
           await banMember(sock, jid, msg);
+          break;
+
+        case 'banc':
+          await banCommunityMember(sock, jid, msg);
           break;
 
         case 'adv':
