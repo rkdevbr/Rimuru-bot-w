@@ -68,6 +68,7 @@ export function adminMenuText() {
 ╭─〔 ✦ MODERAÇÃO 〕──────────────╮
 ┃ ◆ !d — apaga a mensagem respondida
 ┃ ◆ !ban — remove membro
+┃ ◆ !banc @membro — remove da comunidade
 ┃ ◆ !adv @membro motivo
 ┃ ◆ !advs @membro
 ┃ ◆ !remadv @membro / !desadv @membro
