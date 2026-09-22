@@ -59,6 +59,13 @@ if (!indexSource.includes('TAKE_PREFIXLESS_ROUTING_V1')) {
   indexSource = indexSource.replace(prefixGate, takeBlock + prefixGate);
 }
 
+// BANC_ROUTE_PRESERVE_V1
+// O !banc é injetado no src/index.js antes deste patch de roteamento.
+// Não altere/remova o case 'banc' ao aplicar os ajustes abaixo.
+if (!indexSource.includes("case 'banc':")) {
+  throw new Error('[ROUTING FIX] Comando !banc ausente antes do roteamento final.');
+}
+
 // 3) O start antigo transformava o default do roteador em silêncio.
 // Recupera um retorno claro para qualquer comando inexistente digitado com o prefixo correto.
 if (!indexSource.includes('COMMAND_NOT_FOUND_FEEDBACK_V1')) {
