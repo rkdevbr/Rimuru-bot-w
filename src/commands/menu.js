@@ -13,7 +13,6 @@ export function menuText() {
 
 ╭─〔 ✦ PAINÉIS 〕────────────────╮
 ┃ ◆ !adm — administração
-┃ ◆ !dono — controles dos donos
 ┃ ◆ !vip — recursos premium
 ┃ ◆ !menuapi — pesquisas, utilidades e IA
 ┃ ◆ !RPG — NOX: Ecos do Último Mundo
