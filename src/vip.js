@@ -187,40 +187,24 @@ function vipCommandMenu(expiresAt = 0, isOwner = false) {
     `🖼️ *MÍDIA & STICKERS*\n` +
     `• *${p}hd* — melhora mídia para alta qualidade\n` +
     `• *${p}melhorar* — melhora nitidez e resolução de imagem\n` +
-    `• *${p}semfundo* — remove o fundo de uma imagem\n` +
     `• *${p}stickerhd* — cria figurinha em qualidade superior\n` +
-    `• *${p}stickerpack nome* — cria/organiza pacote de stickers\n` +
+    `• *${p}stickerpack nome* — organiza o pacote de stickers\n` +
     `• *${p}marca nome* — personaliza a marca do sticker\n` +
     `• *${p}stickergif* — sticker animado otimizado\n\n` +
-    `🧠 *IA & DOCUMENTOS*\n` +
-    `• *${p}resumiraudio* — transcreve e resume áudio\n` +
-    `• *${p}imagem descrição* — geração de imagem por IA\n` +
-    `• *${p}analisar* — análise inteligente de imagem\n` +
-    `• *${p}pdfia pergunta* — conversa com documentos PDF\n` +
-    `• *${p}flashcards texto* — cria cartões de estudo\n` +
-    `• *${p}ocr* — extrai texto de imagens\n\n` +
     `🧰 *UTILIDADES PREMIUM*\n` +
     `• *${p}salvarlink* — biblioteca pessoal de links\n` +
     `• *${p}pixqr chave valor* — gera QR Pix\n` +
     `• *${p}compararpreco produto* — compara referências de preço\n` +
-    `• *${p}ddd 95* — mostra o estado e todas as cidades atendidas pelo DDD\n` +
+    `• *${p}ddd 95* — consulta estado e cidades do DDD\n` +
     `• *${p}historico* — histórico de comandos usados\n\n` +
-    `🎬 *ENTRETENIMENTO*\n` +
-    `• *${p}seguiranime nome* — acompanha anime\n` +
-    `• *${p}listafilmes* — lista pessoal de filmes\n\n` +
     `👥 *GRUPOS — VIP*\n` +
     `• *${p}tagativos* — marca apenas membros ativos\n` +
     `• *${p}inativos dias* — identifica membros inativos\n` +
     `• *${p}relatorio* — relatório do grupo\n` +
-    `• *${p}relatorio semanal* — relatório focado nos últimos 7 dias\n` +
-    `• *${p}automod on/off* — moderação automática avançada\n` +
-    `• *${p}limpargrupo simular 30* — simula limpeza de inativos\n` +
-    `• *${p}backupgrupo* — salva configurações do grupo\n` +
-    `• *${p}restaurargrupo* — restaura o último backup\n` +
-    `• *${p}personalizarbot ...* — personalização do bot naquele grupo\n\n` +
+    `• *${p}relatorio semanal* — relatório dos últimos 7 dias\n` +
+    `• *${p}backupgrupo* — salva configurações do grupo\n\n` +
     `📊 *CONTA VIP*\n` +
     `• *${p}vipstatus* — validade do VIP\n` +
-    `• *${p}meuslimites* — consulta seus limites\n` +
     `• *${p}prioridade* — consulta sua prioridade de processamento\n` +
     `• *${p}renovar* — renova o VIP`;
 }
