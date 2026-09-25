@@ -10,6 +10,15 @@ import { ESSENTIAL_COMMERCE_COMMANDS, handleEssentialCommerce } from './essentia
 
 const GATE_ONLY_COMMANDS = new Set(['inativos', 'limpargrupo']);
 
+// Removidos do VIP: dependiam de APIs externas, eram entretenimento
+// ou podiam alterar/remover conteúdo do grupo de forma ampla.
+const REMOVED_VIP_COMMANDS = new Set([
+  'resumiraudio', 'imagem', 'analisar', 'pdfia', 'ocr', 'semfundo',
+  'seguiranime', 'listafilmes',
+  'automod', 'limpargrupo', 'restaurargrupo', 'personalizarbot',
+  'meuslimites'
+]);
+
 const VIP_COMMANDS = new Set([
   'hd', 'melhorar', 'semfundo', 'stickerhd', 'stickerpack', 'marca', 'stickergif',
   'resumiraudio', 'imagem', 'analisar', 'pdfia', 'flashcards', 'salvarlink', 'pixqr',
@@ -70,6 +79,10 @@ export async function handleEssentialParticipantUpdate(input) {
 export async function handleEssentialCommand(input) {
   const command = String(input.command || '').toLowerCase();
   if (!isEssentialCommand(command)) return false;
+
+  // Consome silenciosamente comandos retirados para impedir que módulos
+  // legados/V2 executem versões antigas deles depois desta camada.
+  if (REMOVED_VIP_COMMANDS.has(command)) return true;
 
   // Preserva o comando !evento do RPG. O módulo de grupos só assume subcomandos de evento explícitos.
   if (command === 'evento' && !/^(criar|listar|status|remover|cancelar|del)\b/i.test(String(input.args || '').trim())) return false;
